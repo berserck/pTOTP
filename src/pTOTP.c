@@ -13,7 +13,9 @@
 #include "pebble.h"
 
 #include "generate.h"
-#include "unixtime.h"
+
+	
+// #define TEST_TOKEN 1
 
 #define P_UTCOFFSET       1
 #define P_TOKENS_COUNT    2
@@ -205,8 +207,11 @@ void show_no_tokens_message(bool show) {
 void refresh_all(void){
   static unsigned int lastQuantizedTimeGenerated = 0;
 
+#ifdef PBL_PLATFORM_BASALT
+  unsigned long utcTime = time(NULL);
+#else
   unsigned long utcTime = time(NULL) - utc_offset;
-
+#endif
   unsigned int quantized_time = utcTime/30;
 
   if (quantized_time == lastQuantizedTimeGenerated && !key_list_is_dirty) {
@@ -416,6 +421,17 @@ void handle_init() {
       token_list_add(key);
     }
   }
+#ifdef TEST_TOKEN
+	token_list_clear();
+	TokenInfo* key = malloc(sizeof(TokenInfo));
+	strcpy(key->name, "TEST TOKEN!");
+	key->id = 0;
+	void* secret = malloc(10);
+	memset(secret, 65, 10);
+	key->secret = secret;
+	key->secret_length = 10;
+	token_list_add(key);
+#endif
 
   window = window_create();
   window_stack_push(window, true /* Animated */);
