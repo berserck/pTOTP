@@ -14,7 +14,7 @@
 
 #include "generate.h"
 
-	
+
 // #define TEST_TOKEN 1
 
 #define P_UTCOFFSET       1
@@ -422,15 +422,24 @@ void handle_init() {
     }
   }
 #ifdef TEST_TOKEN
-	token_list_clear();
-	TokenInfo* key = malloc(sizeof(TokenInfo));
-	strcpy(key->name, "TEST TOKEN!");
-	key->id = 0;
-	void* secret = malloc(10);
-	memset(secret, 65, 10);
-	key->secret = secret;
-	key->secret_length = 10;
-	token_list_add(key);
+  token_list_clear();
+  TokenInfo* key = malloc(sizeof(TokenInfo));
+  strcpy(key->name, "TEST TOKEN!");
+  key->id = 0;
+  void* secret = malloc(10);
+  memset(secret, 65, 10);
+  key->secret = secret;
+  key->secret_length = 10;
+  token_list_add(key);
+  
+  key = malloc(sizeof(TokenInfo));
+  strcpy(key->name, "TEST TOKEN 2!");
+  key->id = 1;
+  secret = malloc(10);
+  memset(secret, 66, 10);
+  key->secret = secret;
+  key->secret_length = 10;
+  token_list_add(key);
 #endif
 
   window = window_create();
