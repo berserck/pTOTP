@@ -239,16 +239,31 @@ void refresh_all(void){
 }
 
 void bar_layer_update(Layer *l, GContext* ctx) {
+#ifdef PBL_COLOR
+  graphics_context_set_fill_color(ctx, GColorVividCerulean);
+#else
   graphics_context_set_fill_color(ctx, GColorBlack);
+#endif
   unsigned short slice = 30 - (time(NULL) % 30);
   graphics_fill_rect(ctx, GRect(0, 0, (slice * 48) / 10, 5), 0, GCornerNone);
 }
 
 void draw_code_row(GContext *ctx, const Layer *cell_layer, MenuIndex *cell_index, void *callback_context){
+  GRect bounds = layer_get_bounds(cell_layer);
+#ifdef PBL_COLOR
+  graphics_context_set_fill_color(ctx, GColorCobaltBlue);
+  if (menu_cell_layer_is_highlighted(cell_layer)) {
+    graphics_context_set_text_color(ctx, GColorWhite);
+    graphics_fill_rect(ctx, bounds, 0, 0);
+  } else {
+    graphics_context_set_text_color(ctx, GColorBlack);
+  }
+#else
   graphics_context_set_text_color(ctx, GColorBlack);
+#endif
   TokenInfo* key = token_by_list_index(cell_index->row);
-  graphics_draw_text(ctx, (char*)key->name, fonts_get_system_font(FONT_KEY_GOTHIC_14), GRect(0, 36, 144, 20), GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
-  graphics_draw_text(ctx, (char*)key->code, fonts_get_system_font(FONT_KEY_BITHAM_34_MEDIUM_NUMBERS), GRect(0, 0, 144, 100), GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
+  graphics_draw_text(ctx, (char*)key->name, fonts_get_system_font(FONT_KEY_GOTHIC_14), GRect(0, 36, bounds.size.w, 20), GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
+  graphics_draw_text(ctx, (char*)key->code, fonts_get_system_font(FONT_KEY_BITHAM_34_MEDIUM_NUMBERS), GRect(0, 0, bounds.size.w, 100), GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
 }
 
 uint16_t num_code_rows(struct MenuLayer *menu_layer, uint16_t section_index, void *callback_context){
