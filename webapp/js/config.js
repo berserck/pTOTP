@@ -159,6 +159,7 @@ var base32_decode = function(input) {
     input = input.toUpperCase();
     while (i < input.length) {
         var ch = input.charAt(i++);
+        if (ch == ' ') continue;
         if (ch == '0') {
             ch = 'O';
         } else if (ch == '1') {
