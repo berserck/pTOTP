@@ -179,9 +179,5 @@ var base32_decode = function(input) {
             throw Error("Character " + ch + " out of range");
         }
     }
-    if (bitsLeft > 0) {
-      buffer <<= 5;
-      result += String.fromCharCode((buffer >> (bitsLeft - 3)) & 0xFF);
-    }
     return result;
 };
