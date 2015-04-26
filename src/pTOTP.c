@@ -13,7 +13,12 @@
 #include "pebble.h"
 
 #include "generate.h"
+#include "persist_error_msg.h"
 
+#define min(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a < _b ? _a : _b; })
 
 // #define TEST_TOKEN 1
 
@@ -25,7 +30,7 @@
 
 #define MAX_NAME_LENGTH   32
 
-Window *window;
+static Window *window;
 
 typedef enum PersistenceWritebackFlags {
   PWNone = 0,
@@ -87,6 +92,8 @@ int utc_offset;
 int token_list_retrieve_index = 0;
 
 int startup_selected_list_index = 0;
+
+static void persist_do_writeback(void);
 
 void token_list_add(TokenInfo* key) {
   TokenListNode* node = malloc(sizeof(TokenListNode));
@@ -403,6 +410,7 @@ void in_received_handler(DictionaryIterator *received, void *context) {
 
   if (delta){
     refresh_all();
+    persist_do_writeback();
   }
 }
 
@@ -505,41 +513,59 @@ void handle_tick(struct tm* tick_time, TimeUnits units_changed) {
   layer_mark_dirty(bar_layer);
 }
 
-void handle_deinit() {
+static void persist_do_writeback(void) {
+  bool writeback_ok = true;
+  int writeback_status = S_SUCCESS;
   if ((persist_writeback & PWUTCOffset) == PWUTCOffset) {
     // Write back persistent things
-    persist_write_int(P_UTCOFFSET, utc_offset);
+    writeback_status = min(0, persist_write_int(P_UTCOFFSET, utc_offset));
+    writeback_ok &= writeback_status == S_SUCCESS;
+    // APP_LOG(APP_LOG_LEVEL_DEBUG, "Wrote UTC offset, status %d", writeback_status);
   }
 
-  if (startup_selected_list_index != menu_layer_get_selected_index(code_list_layer).row) {
-    persist_write_int(P_SELECTED_LIST_INDEX, menu_layer_get_selected_index(code_list_layer).row);
-    APP_LOG(APP_LOG_LEVEL_DEBUG, "Wrote list index");
+  if (startup_selected_list_index != menu_layer_get_selected_index(code_list_layer).row && writeback_ok) {
+    writeback_status = min(0, persist_write_int(P_SELECTED_LIST_INDEX, menu_layer_get_selected_index(code_list_layer).row));
+    writeback_ok &= writeback_status == S_SUCCESS;
+    // APP_LOG(APP_LOG_LEVEL_DEBUG, "Wrote list index, status %d", writeback_status);
   }
 
-  if ((persist_writeback & PWTokens) == PWTokens) {
-    persist_write_int(P_TOKENS_COUNT, token_list_length());
+  if ((persist_writeback & PWTokens) == PWTokens && writeback_ok) {
+    writeback_status = min(0, persist_write_int(P_TOKENS_COUNT, token_list_length()));
+    writeback_ok &= writeback_status == S_SUCCESS;
+    // APP_LOG(APP_LOG_LEVEL_DEBUG, "Wrote token count, status %d", writeback_status);
 
     TokenListNode* node = token_list;
     short idx = 0;
-    while (node) {
-      persist_write_data(P_TOKENS_START + idx, node->key, sizeof(TokenInfo));
+    while (node && writeback_ok) {
+      writeback_status = (persist_write_data(P_TOKENS_START + idx, node->key, sizeof(TokenInfo)) == sizeof(TokenInfo)) ? S_SUCCESS : -64;
+      writeback_ok &= writeback_status == S_SUCCESS;
       idx++;
       node = node->next;
     }
 
-    APP_LOG(APP_LOG_LEVEL_INFO, "Wrote %d tokens", idx);
+    // APP_LOG(APP_LOG_LEVEL_INFO, "Wrote %d tokens, status %d", idx, writeback_status);
   }
 
   // This is stored in a seperate storage area keyed by ID because a) it's easier to have truly variable-length secrets this way, and b) it's easier to ensure secrets are deleted (as opposed to relying on them getting overwritten)
-  if ((persist_writeback & PWSecrets) == PWSecrets) {
+  if ((persist_writeback & PWSecrets) == PWSecrets && writeback_ok) {
     TokenListNode* node = token_list;
-    while (node) {
-      persist_write_data(P_SECRETS_START + node->key->id, node->key->secret, node->key->secret_length);
+    while (node && writeback_ok) {
+      writeback_status = (persist_write_data(P_SECRETS_START + node->key->id, node->key->secret, node->key->secret_length) == node->key->secret_length) ? S_SUCCESS : -63;
+      writeback_ok &= writeback_status == S_SUCCESS;
       node = node->next;
     }
 
-    APP_LOG(APP_LOG_LEVEL_INFO, "Wrote secrets");
+    // APP_LOG(APP_LOG_LEVEL_INFO, "Wrote secrets, status %d", writeback_status);
   }
+
+  if (!writeback_ok) {
+    persist_error_push(writeback_status);
+  }
+  persist_writeback = PWNone;
+}
+
+void handle_deinit() {
+  persist_do_writeback();
 
   token_list_clear();
   menu_layer_destroy(code_list_layer);

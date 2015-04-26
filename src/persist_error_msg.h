@@ -1,0 +1,1 @@
+void persist_error_push(int code);
