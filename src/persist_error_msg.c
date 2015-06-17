@@ -36,7 +36,9 @@ static void window_unload(Window *window) {
 void persist_error_push(int code) {
   error_code = code;
   window = window_create();
+#ifdef PBL_PLATFORM_APLITE
   window_set_fullscreen(window, true);
+#endif
   window_set_window_handlers(window, (WindowHandlers) {
     .load = window_load,
     .unload = window_unload,
