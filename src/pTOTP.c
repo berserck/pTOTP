@@ -214,7 +214,7 @@ void show_no_tokens_message(bool show) {
 void refresh_all(void){
   static unsigned int lastQuantizedTimeGenerated = 0;
 
-#ifdef PBL_PLATFORM_BASALT
+#ifndef PBL_PLATFORM_APLITE
   unsigned long utcTime = time(NULL);
 #else
   unsigned long utcTime = time(NULL) - utc_offset;
@@ -245,14 +245,45 @@ void refresh_all(void){
   show_no_tokens_message(!hasKeys);
 }
 
+static void wrap_angle(int *angle) {
+  while (*angle < 0) {
+    *angle += TRIG_MAX_ANGLE;
+  }
+  while (*angle > TRIG_MAX_ANGLE) {
+    *angle -= TRIG_MAX_ANGLE;
+  }
+}
+
 void bar_layer_update(Layer *l, GContext* ctx) {
-#ifdef PBL_COLOR
+#ifdef PBL_PLATFORM_BASALT
   graphics_context_set_fill_color(ctx, GColorVividCerulean);
 #else
   graphics_context_set_fill_color(ctx, GColorBlack);
 #endif
-  unsigned short slice = 30 - (time(NULL) % 30);
-  graphics_fill_rect(ctx, GRect(0, 0, (slice * 48) / 10, 5), 0, GCornerNone);
+
+  static const unsigned short MAX_SLICE_TIME = 0xffff;
+  time_t now_sec;
+  uint16_t now_msec;
+  time_ms(&now_sec, &now_msec);
+  unsigned int slice =  (now_sec % 30) * (MAX_SLICE_TIME / 30) + ((now_msec * MAX_SLICE_TIME) / 30000);
+
+  #ifdef PBL_PLATFORM_CHALK
+  int32_t start_angle, end_angle;
+  if (now_sec % 60 < 30) {
+    start_angle = slice * TRIG_MAX_ANGLE / MAX_SLICE_TIME;
+    end_angle = TRIG_MAX_ANGLE;
+  } else {
+    start_angle = 0;
+    end_angle = slice * TRIG_MAX_ANGLE / MAX_SLICE_TIME;
+  }
+
+  graphics_context_set_fill_color(ctx, GColorVividCerulean);
+  graphics_fill_radial(ctx, layer_get_bounds(l), GOvalScaleModeFitCircle, 8, end_angle == TRIG_MAX_ANGLE ? 0 : end_angle, start_angle == 0 ? TRIG_MAX_ANGLE : start_angle);
+  graphics_context_set_fill_color(ctx, GColorCobaltBlue);
+  graphics_fill_radial(ctx, layer_get_bounds(l), GOvalScaleModeFitCircle, 8, start_angle, end_angle);
+  #else
+  graphics_fill_rect(ctx, GRect(0, 0, ((MAX_SLICE_TIME-slice) * 144) / MAX_SLICE_TIME, 5), 0, GCornerNone);
+  #endif
 }
 
 void draw_code_row(GContext *ctx, const Layer *cell_layer, MenuIndex *cell_index, void *callback_context){
@@ -274,12 +305,31 @@ void draw_code_row(GContext *ctx, const Layer *cell_layer, MenuIndex *cell_index
 }
 
 uint16_t num_code_rows(struct MenuLayer *menu_layer, uint16_t section_index, void *callback_context){
+  if (section_index) return 0;
   return token_list_length();
 }
 
 int16_t get_cell_height(struct MenuLayer *menu_layer, MenuIndex *cell_index, void *callback_context) {
+  #ifdef PBL_PLATFORM_CHALK
+  return 180/3;
+  #else
   return 55;
+  #endif
 }
+
+#ifdef PBL_PLATFORM_CHALK
+
+void draw_no_header(GContext *ctx, const Layer *cell_layer, uint16_t section_index, void *callback_context){}
+
+uint16_t num_faux_sections(MenuLayer *menu_layer, void *callback_context) {
+  return 2;
+}
+
+int16_t get_faux_section_height(MenuLayer *menu_layer, uint16_t section_index, void *callback_context) {
+  return 180/3;
+}
+
+#endif
 
 void token_list_retrieve_iter() {
   DictionaryIterator *iter;
@@ -420,7 +470,26 @@ void out_sent_handler(DictionaryIterator *sent, void *context) {
   }
 }
 
-// Standard app init
+// Animations on Chalk (only)
+// We also drive code refreshes from here (rather than a tick handler) so they line up
+void bar_animation_tick(void* unused) {
+  static uint32_t current_code_gen;
+  uint32_t code_gen = time(NULL) / 30;
+
+  if (code_gen != current_code_gen) {
+    refresh_all();
+    current_code_gen = code_gen;
+  }
+
+  layer_mark_dirty(bar_layer);
+
+  app_timer_register(1000/29, bar_animation_tick, NULL);
+}
+
+void handle_tick(struct tm* tick_time, TimeUnits units_changed) {
+  refresh_all();
+  layer_mark_dirty(bar_layer);
+}
 
 void handle_init() {
 
@@ -470,20 +539,42 @@ void handle_init() {
 
   Layer* rootLayer = window_get_root_layer(window);
   GRect rootLayerRect = layer_get_bounds(rootLayer);
-  bar_layer = layer_create(GRect(0,rootLayerRect.size.h-5,rootLayerRect.size.w,5));
-  layer_set_update_proc(bar_layer, bar_layer_update);
-  layer_add_child(rootLayer, bar_layer);
 
-  no_tokens_layer = text_layer_create(GRect(0, rootLayerRect.size.h/2-35, rootLayerRect.size.w, 30*2));
+#ifdef PBL_PLATFORM_CHALK
+  // It's not a bar on Chalk...
+  const GRect bar_layer_rect = rootLayerRect;
+#else
+  const GRect bar_layer_rect = GRect(0, rootLayerRect.size.h-5, rootLayerRect.size.w, 5);
+#endif
+
+  bar_layer = layer_create(bar_layer_rect);
+  layer_set_update_proc(bar_layer, bar_layer_update);
+
+#ifdef PBL_PLATFORM_CHALK
+  const GRect no_tokens_rect = GRect(0, rootLayerRect.size.h/2-17, rootLayerRect.size.w, 30*2);
+#else
+  const GRect no_tokens_rect = GRect(0, rootLayerRect.size.h/2-35, rootLayerRect.size.w, 30*2);
+#endif
+  no_tokens_layer = text_layer_create(no_tokens_rect);
+
   text_layer_set_text(no_tokens_layer, "No Tokens");
   text_layer_set_font(no_tokens_layer, fonts_get_system_font(FONT_KEY_BITHAM_30_BLACK));
   text_layer_set_text_color(no_tokens_layer, GColorBlack);
   text_layer_set_text_alignment(no_tokens_layer, GTextAlignmentCenter);
-  layer_add_child(rootLayer, (Layer*)no_tokens_layer);
 
-  code_list_layer = menu_layer_create(GRect(0,0,rootLayerRect.size.w, rootLayerRect.size.h - 4));
+  #ifdef PBL_PLATFORM_CHALK
+    const GRect code_list_rect = rootLayerRect;
+  #else
+    const GRect code_list_rect = GRect(0,0,rootLayerRect.size.w, rootLayerRect.size.h - 4);
+  #endif
+  code_list_layer = menu_layer_create(code_list_rect);
 
   MenuLayerCallbacks menuCallbacks = {
+#ifdef PBL_PLATFORM_CHALK
+    .get_num_sections = num_faux_sections,
+    .get_header_height = get_faux_section_height,
+    .draw_header = draw_no_header,
+#endif
     .draw_row = draw_code_row,
     .get_num_rows = num_code_rows,
     .get_cell_height = get_cell_height
@@ -496,6 +587,15 @@ void handle_init() {
 
 
   layer_add_child(rootLayer, (Layer*)code_list_layer);
+  layer_add_child(rootLayer, bar_layer);
+  layer_add_child(rootLayer, (Layer*)no_tokens_layer);
+
+  // Start draining their batteries
+  #ifdef PBL_PLATFORM_CHALK
+  bar_animation_tick(NULL);
+  #else
+  tick_timer_service_subscribe(SECOND_UNIT, handle_tick);
+  #endif
 
   // Ideally we'd set this before we register the callbacks, so we wouldn't catch the change event should it be called.
   if (persist_exists(P_SELECTED_LIST_INDEX)) {
@@ -506,11 +606,6 @@ void handle_init() {
 
 
   refresh_all();
-}
-
-void handle_tick(struct tm* tick_time, TimeUnits units_changed) {
-  refresh_all();
-  layer_mark_dirty(bar_layer);
 }
 
 static void persist_do_writeback(void) {
@@ -576,7 +671,6 @@ void handle_deinit() {
 
 int main() {
   handle_init();
-  tick_timer_service_subscribe(SECOND_UNIT, handle_tick);
   app_event_loop();
   handle_deinit();
 }

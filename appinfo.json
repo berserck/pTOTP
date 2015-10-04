@@ -32,11 +32,12 @@
     "shortName": "Authenticator",
     "targetPlatforms": [
         "aplite",
-        "basalt"
+        "basalt",
+        "chalk"
     ],
     "uuid": "da96ea4e-7793-4301-9d9a-68714a902730",
-    "versionCode": 6,
-    "versionLabel": "1.6",
+    "versionCode": 7,
+    "versionLabel": "1.7",
     "watchapp": {
         "watchface": false
     }
