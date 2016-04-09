@@ -29,6 +29,7 @@ var TokenByID = function(id) {
 };
 
 var AMQueue = [];
+var AMActiveMessage;
 var AMPending = false;
 var QueueAppMessage = function(message) {
     AMQueue.push(message);
@@ -36,7 +37,8 @@ var QueueAppMessage = function(message) {
 };
 
 var AMQueueFail = function(txn) {
-    console.log("AM transmit failed: " + txn.error.message + ", continuing");
+    console.log("AM transmit failed: " + JSON.stringify(txn) + ", retrying");
+    AMQueue.unshift(AMActiveMessage);
     AMTransmitQueue();
 };
 
@@ -47,6 +49,7 @@ var AMTransmitQueue = function() {
     }
     AMPending = true;
     var message = AMQueue.shift();
+    AMActiveMessage = message;
     Pebble.sendAppMessage(message, AMTransmitQueue, AMQueueFail);
 };
 

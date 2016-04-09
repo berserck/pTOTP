@@ -288,17 +288,22 @@ void bar_layer_update(Layer *l, GContext* ctx) {
 
 void draw_code_row(GContext *ctx, const Layer *cell_layer, MenuIndex *cell_index, void *callback_context){
   GRect bounds = layer_get_bounds(cell_layer);
-#ifdef PBL_COLOR
-  graphics_context_set_fill_color(ctx, GColorCobaltBlue);
+  GColor fg = GColorBlack;
+  GColor active_fg = GColorWhite;
+  #ifdef PBL_COLOR
+  GColor active_bg = GColorCobaltBlue;
+  #else
+  GColor active_bg = GColorBlack;
+  #endif
+
+  graphics_context_set_fill_color(ctx, active_bg);
   if (menu_cell_layer_is_highlighted(cell_layer)) {
-    graphics_context_set_text_color(ctx, GColorWhite);
+    graphics_context_set_text_color(ctx, active_fg);
     graphics_fill_rect(ctx, bounds, 0, 0);
   } else {
-    graphics_context_set_text_color(ctx, GColorBlack);
+    graphics_context_set_text_color(ctx, fg);
   }
-#else
-  graphics_context_set_text_color(ctx, GColorBlack);
-#endif
+
   TokenInfo* key = token_by_list_index(cell_index->row);
   graphics_draw_text(ctx, (char*)key->name, fonts_get_system_font(FONT_KEY_GOTHIC_14), GRect(0, 36, bounds.size.w, 20), GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
   graphics_draw_text(ctx, (char*)key->code, fonts_get_system_font(FONT_KEY_BITHAM_34_MEDIUM_NUMBERS), GRect(0, 0, bounds.size.w, 100), GTextOverflowModeTrailingEllipsis, GTextAlignmentCenter, NULL);
@@ -496,8 +501,8 @@ void handle_init() {
   app_message_register_inbox_received(in_received_handler);
   app_message_register_outbox_sent(out_sent_handler);
 
-  const uint32_t inbound_size = app_message_inbox_size_maximum();
-  const uint32_t outbound_size = app_message_outbox_size_maximum();
+  const uint32_t inbound_size = 1024;
+  const uint32_t outbound_size = 1024;
   app_message_open(inbound_size, outbound_size);
 
   // Load persisted data
