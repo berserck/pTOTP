@@ -199,6 +199,7 @@ void publicinfo2tokeninfo(PublicTokenInfo* public, TokenInfo* key) {
 }
 
 void code2char(unsigned int code, char* out) {
+  out[6] = 0;
   for(int x=0; x<6; x++) {
     out[5-x] = '0' + (code % 10);
     code /= 10;
