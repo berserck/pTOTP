@@ -42,9 +42,9 @@ $(document).ready(function(e) {
                     newTokens.push(TokenByID($(this).data("id")));
                 });
                 if (Tokens != newTokens) {
+                    Tokens = newTokens;
                     RefreshTokenList();
                     SetPendingWatchUpdate();
-                    Tokens = newTokens;
                 }
             }
         });
