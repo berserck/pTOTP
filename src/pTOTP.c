@@ -215,7 +215,7 @@ void show_no_tokens_message(bool show) {
 void refresh_all(void){
   static unsigned int lastQuantizedTimeGenerated = 0;
 
-#ifndef PBL_PLATFORM_APLITE
+#ifdef PBL_SDK_3
   unsigned long utcTime = time(NULL);
 #else
   unsigned long utcTime = time(NULL) - utc_offset;
