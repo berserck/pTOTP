@@ -6,3 +6,7 @@ While I have done my best to guard the credentials you enter in this application
 
 # Build it yourself
 Nothing more than the standard [Pebble 2.0 SDK](https://developer.getpebble.com/2/getting-started/) is required to build and run this app. You may wish to change the configuration page URL in the `showConfiguration` event handler to point at a local development server.
+
+Run command `pebble build`
+
+To install run command `pebble install --phone <IP>`

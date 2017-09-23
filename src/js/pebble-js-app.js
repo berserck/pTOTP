@@ -71,9 +71,9 @@ var OpenConfiguration = function(){
     // You used to be able to defer opening the config page till the tokens were loaded.
     // You can't any more...
     if (TokenLoadFinished) {
-        Pebble.openURL("https://pebbleauth.cpfx.ca/config.html?ver=1.1.0#" + encodeURIComponent(JSON.stringify(Tokens)));
+        Pebble.openURL("http://pebbleauth.parracho.tk:8000/config.html?ver=1.1.0#" + encodeURIComponent(JSON.stringify(Tokens)));
     } else {
-        Pebble.openURL("https://pebbleauth.cpfx.ca/relaunch.html");
+        Pebble.openURL("http://pebbleauth.parracho.tk:8000/config.html/relaunch.html");
     }
 };
 
